@@ -4,8 +4,9 @@ import (
 	"bbs-go/model/constants"
 	"errors"
 
-	"github.com/jinzhu/gorm"
 	"github.com/mlogclub/simple"
+	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 
 	"bbs-go/model"
 	"bbs-go/repositories"
@@ -84,12 +85,13 @@ func (s *userLikeService) Exists(userId int64, entityType string, entityId int64
 
 // 话题点赞
 func (s *userLikeService) TopicLike(userId int64, topicId int64) error {
+	logrus.Info("params:", userId, topicId)
 	topic := repositories.TopicRepository.Get(simple.DB(), topicId)
 	if topic == nil || topic.Status != constants.StatusOk {
 		return errors.New("话题不存在")
 	}
 
-	return simple.Tx(simple.DB(), func(tx *gorm.DB) error {
+	return simple.DB().Transaction(func(tx *gorm.DB) error {
 		if err := s.like(tx, userId, constants.EntityTopic, topicId); err != nil {
 			return err
 		}
@@ -104,7 +106,7 @@ func (s *userLikeService) TweetLike(userId int64, tweetId int64) error {
 	if tweet == nil || tweet.Status != constants.StatusOk {
 		return errors.New("动态不存在")
 	}
-	return simple.Tx(simple.DB(), func(tx *gorm.DB) error {
+	return simple.DB().Transaction(func(tx *gorm.DB) error {
 		if err := s.like(tx, userId, constants.EntityTweet, tweetId); err != nil {
 			return err
 		}

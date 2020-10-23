@@ -8,10 +8,10 @@ import (
 	"bbs-go/model/constants"
 	"database/sql"
 	"errors"
-	"github.com/jinzhu/gorm"
 	"github.com/mlogclub/simple"
 	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
+	"gorm.io/gorm"
 	"net/http"
 	"strconv"
 	"strings"
@@ -196,7 +196,7 @@ func (s *userService) SignUp(username, email, nickname, password, rePassword str
 		UpdateTime: simple.NowTimestamp(),
 	}
 
-	err = simple.Tx(simple.DB(), func(tx *gorm.DB) error {
+	err = simple.DB().Transaction(func(tx *gorm.DB) error {
 		if err := repositories.UserRepository.Create(tx, user); err != nil {
 			return err
 		}
@@ -272,7 +272,7 @@ func (s *userService) SignInByThirdAccount(thirdAccount *model.ThirdAccount) (*m
 		CreateTime:  simple.NowTimestamp(),
 		UpdateTime:  simple.NowTimestamp(),
 	}
-	err := simple.Tx(simple.DB(), func(tx *gorm.DB) error {
+	err := simple.DB().Transaction(func(tx *gorm.DB) error {
 		if err := repositories.UserRepository.Create(tx, user); err != nil {
 			return err
 		}
@@ -325,9 +325,14 @@ func (s *userService) isUsernameExists(username string) bool {
 	return s.GetByUsername(username) != nil
 }
 
-// SetAvatar 更新头像
+// UpdateAvatar 更新头像
 func (s *userService) UpdateAvatar(userId int64, avatar string) error {
 	return s.UpdateColumn(userId, "avatar", avatar)
+}
+
+// UpdateBackgroundImage 修改背景图
+func (s *userService) UpdateBackgroundImage(userId int64, backgroundImage string) error {
+	return s.UpdateColumn(userId, "background_image", backgroundImage)
 }
 
 // SetUsername 设置用户名
@@ -454,7 +459,7 @@ func (s *userService) SendEmailVerifyEmail(userId int64) error {
 		title     = "邮箱验证 - " + siteTitle
 		content   = "该邮件用于验证你在 " + siteTitle + " 中设置邮箱的正确性，请在" + strconv.Itoa(emailVerifyExpireHour) + "小时内完成验证。验证链接：" + url
 	)
-	return simple.Tx(simple.DB(), func(tx *gorm.DB) error {
+	return simple.DB().Transaction(func(tx *gorm.DB) error {
 		if err := repositories.EmailCodeRepository.Create(tx, &model.EmailCode{
 			Model:      model.Model{},
 			UserId:     userId,
@@ -488,7 +493,7 @@ func (s *userService) VerifyEmail(userId int64, token string) error {
 	if simple.TimeFromTimestamp(emailCode.CreateTime).Add(time.Hour * time.Duration(emailVerifyExpireHour)).Before(time.Now()) {
 		return errors.New("验证邮件已过期")
 	}
-	return simple.Tx(simple.DB(), func(tx *gorm.DB) error {
+	return simple.DB().Transaction(func(tx *gorm.DB) error {
 		if err := repositories.UserRepository.UpdateColumn(tx, emailCode.UserId, "email_verified", true); err != nil {
 			return err
 		}
